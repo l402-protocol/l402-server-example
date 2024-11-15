@@ -498,19 +498,6 @@ doc = ["Sphinx (>=7)", "packaging", "sphinx-autodoc-typehints (>=1.2.0)", "sphin
 test = ["coverage (>=7)", "hypothesis", "pytest"]
 
 [[package]]
-name = "cdp"
-version = "0.0.2"
-description = "Change Directory Plus"
-optional = false
-python-versions = "*"
-files = [
-    {file = "cdp-0.0.2.tar.gz", hash = "sha256:92fa51d74d12695ab744d9c5ebe00057110df5dc47d6405440933fd7a2f19526"},
-]
-
-[package.dependencies]
-scandir = "*"
-
-[[package]]
 name = "cdp-sdk"
 version = "0.10.3"
 description = "CDP Python SDK"
