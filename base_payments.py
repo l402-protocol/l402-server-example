@@ -12,7 +12,7 @@ api_key_private_key = os.environ.get("COINBASE_API_KEY_PRIVATE_KEY")
 Cdp.configure(api_key_name, api_key_private_key)
 
 def init_webhook_routes(app):
-    @app.route('/webhook', methods=['POST'])
+    @app.route('/webhook/base', methods=['POST'])
     def handle_webhook():
         event = request.json
 

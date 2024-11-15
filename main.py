@@ -2,9 +2,14 @@ from flask import Flask, request
 import functools
 import users
 import stock_data
+import l402
+import base_payments
+import stripe_payments
+
 
 app = Flask(__name__)
-
+base_payments.init_webhook_routes(app)  # For Coinbase payments
+stripe_payments.init_stripe_webhook_routes(app)  # For Stripe payments
 
 def require_auth(f):
     """
@@ -62,7 +67,8 @@ def ticker(user_data, ticker_symbol):
     # If our user has no credits then we will return a 402 with information so
     # they can automatically buy more credits
     if user_data['credits'] <= 0:
-        return {'error': 'no credits'}, 402
+        response = l402.create_new_response(user_data['id'])
+        return response, 402
 
     # Get the ticker data from Yahoo Finance
     ticker_data = stock_data.get_ticker_data(ticker_symbol)
