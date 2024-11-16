@@ -1,3 +1,4 @@
+from dotenv import load_dotenv
 from flask import Flask, request
 import functools
 import users
@@ -6,6 +7,7 @@ import l402
 import base_payments
 import stripe_payments
 
+load_dotenv()
 
 app = Flask(__name__)
 base_payments.init_webhook_routes(app)  # For Coinbase payments
@@ -52,7 +54,6 @@ def info(user_data):
     # If the user is not logged in our middleware will have already return a 401 error
     return user_data
 
-
 #  Request ticker data
 # Requires:
 #   - Authorization header with Bearer token
@@ -62,26 +63,27 @@ def info(user_data):
 @app.route('/ticker/<ticker_symbol>')
 @require_auth
 def ticker(user_data, ticker_symbol):
-    # If the user is not logged in our middleware will have already return a 401 error
-
-    # If our user has no credits then we will return a 402 with information so
-    # they can automatically buy more credits
+    # If the user has no credits, return 402
     if user_data['credits'] <= 0:
         response = l402.create_new_response(user_data['id'])
         return response, 402
 
-    # Get the ticker data from Yahoo Finance
-    ticker_data = stock_data.get_ticker_data(ticker_symbol)
-    if not ticker_data:
-        return {'error': 'invalid ticker'}, 400
+    try:
+        # Get the ticker data from Yahoo Finance
+        ticker_data = stock_data.get_stock_data(ticker_symbol)
+        if not ticker_data:
+            return {'error': 'invalid ticker'}, 400
 
-    # Update the user's credits
-    user_id = user_data['id']
-    new_credits = user_data['credits'] - 1
-    users.update_user_credits(user_id, new_credits)
+        # Update credits only if we successfully got the data
+        user_id = user_data['id']
+        new_credits = user_data['credits'] - 1
+        users.update_user_credits(user_id, new_credits)
 
-    # Return the ticker data
-    return ticker_data
+        return ticker_data
+    except ConnectionError:
+        return {'error': 'Unable to connect to stock data service. Please try again later.'}, 503
+    except Exception as e:
+        return {'error': 'Failed to fetch stock data'}, 500
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 import yfinance as yf
 
 # Get the ticker's data from Yahoo Finance
-def get_financial_data(ticker):
+def get_stock_data(ticker):
     try:
         stock = yf.Ticker(ticker)
         financials = stock.financials

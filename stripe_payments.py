@@ -1,7 +1,7 @@
 import os
 import stripe
 from flask import request
-from replit import db
+from db import db
 from users import update_user_credits
 from datetime import datetime
 
@@ -46,22 +46,10 @@ def create_payment_link(user_id, credits, amount, currency):
         
     try:
         payment_link = stripe.PaymentLink.create(
-            line_items=[{
-                'price_data': {
-                    'currency': currency,
-                    'unit_amount': amount, 
-                    'product_data': {
-                        'name': f'{credits} AI Credits',
-                    },
-                },
-                'quantity': 1,
-            }],
-            metadata={
-                'user_id': user_id,
-                'credits': credits
-            }
+            line_items=[{"price": 'price_1QLJhrDh4HSWvy0Ttd2zz6PL', "quantity": 1}],
+            api_key=os.environ.get("STRIPE_SECRET_KEY")
         )
-        
+
         # Store payment link details
         db[f"stripe_payment_{payment_link.id}"] = {
             "user_id": user_id,

@@ -2,8 +2,7 @@ import os
 
 from cdp import *
 from flask import request
-from replit import db                
-
+from db import db
 from users import update_user_credits
 
 api_key_name = os.environ.get("COINBASE_API_KEY_NAME")
