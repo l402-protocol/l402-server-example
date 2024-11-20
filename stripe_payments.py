@@ -1,8 +1,7 @@
 import os
 import stripe
 from flask import request
-from db import db
-from users import update_user_credits
+from database import db
 from datetime import datetime
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
@@ -12,56 +11,63 @@ def init_stripe_webhook_routes(app):
     def handle_stripe_webhook():
         try:
             event = stripe.Webhook.construct_event(
-                request.data,
-                request.headers['Stripe-Signature'],
-                os.environ.get('STRIPE_WEBHOOK_SECRET')
+                payload=request.data,
+                sig_header=request.headers['Stripe-Signature'],
+                secret=os.environ.get('STRIPE_WEBHOOK_SECRET'),
+                api_key=os.environ.get('STRIPE_SECRET_KEY')
             )
             
             if event['type'] == 'checkout.session.completed':
                 session = event['data']['object']
-                payment_id = session['payment_link']
                 
-                # Get stored payment details
-                payment_data = db.get(f"stripe_payment_{payment_id}")
-                if payment_data:
-                    # Update user credits
-                    update_user_credits(
-                        payment_data['user_id'],
-                        payment_data['credits'],
-                        increment=True
-                    )
+                payment_id = session.get('payment_link')
+                if not payment_id:
+                    return {'error': 'No payment_link in session'}, 400
+                
+                payment_data = db.get_payment(payment_id)
+                if not payment_data:
+                    return {'error': 'Payment data not found'}, 400
                     
-                    # Update payment status
-                    payment_data['status'] = 'completed'
-                    db[f"stripe_payment_{payment_id}"] = payment_data
+                # Update user credits and payment status
+                db.update_user_credits(
+                    payment_data['user_id'],
+                    payment_data['credits']
+                )
+                db.update_payment_status(payment_id, 'completed')
             
             return {'status': 'success'}, 200
             
         except Exception as e:
+            print(f"\n=== ERROR DEBUG ===")
+            print(f"Exception type: {type(e)}")
+            print(f"Exception message: {str(e)}")
             return {'error': str(e)}, 400
 
-def create_payment_link(user_id, credits, amount, currency):
-    if not all([user_id, credits, amount, currency]):
+def create_payment_link(offer_id, user_id, credits, amount, currency):
+    if not all([offer_id, user_id, credits, amount, currency]):
         raise ValueError("All parameters are required")
         
+
     try:
+        # Make sure the price is set up in stripe first
+        price_id = os.environ.get("STRIPE_PRICE_ID")
+
         payment_link = stripe.PaymentLink.create(
-            line_items=[{"price": 'price_1QLJhrDh4HSWvy0Ttd2zz6PL', "quantity": 1}],
+            line_items=[{"price": price_id, "quantity": 1}],
             api_key=os.environ.get("STRIPE_SECRET_KEY")
         )
 
-        # Store payment link details
-        db[f"stripe_payment_{payment_link.id}"] = {
-            "user_id": user_id,
-            "credits": credits,
-            "amount": amount,
-            "currency": currency,
-            "status": "pending",
-            "created_at": datetime.utcnow().isoformat()
-        }
+        db.create_payment(
+            payment_id=payment_link.id,
+            user_id=user_id,
+            offer_id=offer_id,
+            provider="stripe",
+            amount=amount,
+            currency=currency,
+            credits=credits,
+        )
         
         return payment_link.url
     except (stripe.error.StripeError, Exception) as e:
-        # Log the error
         print(f"Error creating payment link: {str(e)}")
         raise

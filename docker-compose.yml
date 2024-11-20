@@ -1,0 +1,17 @@
+services:
+  api:
+    build: .
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=/app/app.db
+    volumes:
+      - .:/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sqlite3", "/app/app.db", "SELECT 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

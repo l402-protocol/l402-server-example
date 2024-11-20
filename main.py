@@ -1,17 +1,16 @@
 from dotenv import load_dotenv
 from flask import Flask, request
 import functools
-import users
 import stock_data
 import l402
-import base_payments
 import stripe_payments
+from database import db
 
 load_dotenv()
 
 app = Flask(__name__)
-base_payments.init_webhook_routes(app)  # For Coinbase payments
 stripe_payments.init_stripe_webhook_routes(app)  # For Stripe payments
+
 
 def require_auth(f):
     """
@@ -26,9 +25,9 @@ def require_auth(f):
         if not auth_header or not auth_header.startswith('Bearer '):
             return {'error': 'Missing or invalid authorization header'}, 401
 
-        # Validate token and get associated user data
-        token = auth_header.split(' ')[1]
-        user_data = users.get_user_by_token(token)
+        # Validate user_id and get associated user data
+        user_id = auth_header.split(' ')[1]
+        user_data = db.get_user(user_id)
         if not user_data:
             return {'error': 'invalid token'}, 401
 
@@ -41,7 +40,7 @@ def require_auth(f):
 # Returns: User data including an authentication token for future requests
 @app.route('/signup')
 def signup():
-    user_data = users.new_user()
+    user_data = db.create_user()
     return user_data
 
 
@@ -72,13 +71,10 @@ def ticker(user_data, ticker_symbol):
         # Get the ticker data from Yahoo Finance
         ticker_data = stock_data.get_stock_data(ticker_symbol)
         if not ticker_data:
-            return {'error': 'invalid ticker'}, 400
-
+            return {'error': f'unable to fetch stock data for ticker {ticker_symbol}'}, 400
+        
         # Update credits only if we successfully got the data
-        user_id = user_data['id']
-        new_credits = user_data['credits'] - 1
-        users.update_user_credits(user_id, new_credits)
-
+        db.update_user_credits(user_data['id'], -1)
         return ticker_data
     except ConnectionError:
         return {'error': 'Unable to connect to stock data service. Please try again later.'}, 503
@@ -87,4 +83,4 @@ def ticker(user_data, ticker_symbol):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5001)
