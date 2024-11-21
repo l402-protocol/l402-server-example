@@ -36,6 +36,16 @@ def require_auth(f):
     return decorated
 
 
+# Payment success endpoint for Stripe
+@app.route('/payment/success', methods=['GET'])
+def payment_success():
+    return {'status': 'success', 'message': 'Payment completed successfully'}, 200
+
+# Payment cancel endpoint for Stripe
+@app.route('/payment/cancel', methods=['GET'])
+def payment_cancel():
+    return {'status': 'cancelled', 'message': 'Payment was cancelled'}, 200
+
 # Create a new user account
 # Returns: User data including an authentication token for future requests
 @app.route('/signup')

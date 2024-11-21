@@ -43,13 +43,14 @@ class Database:
             conn.close()
 
     # User methods
-    def create_user(self, credits: int = 1, created_at: datetime = datetime.now(timezone.utc)) -> Dict:
+    def create_user(self, credits: int = 1) -> Dict:
         user_id = str(uuid4())
+        timestamp = datetime.now(timezone.utc)
 
         with self.get_connection() as conn:
             conn.execute(
-                'INSERT INTO users (id, credits, created_at) VALUES (?, ?, ?)',
-                (user_id, credits, created_at)
+                'INSERT INTO users (id, credits, created_at, last_credit_update_at) VALUES (?, ?, ?, ?)',
+                (user_id, credits, timestamp, timestamp)
             )
         return self.get_user(user_id)
 
@@ -62,74 +63,50 @@ class Database:
             return dict(row) if row else None
 
     def update_user_credits(self, user_id: str, credits_delta: int) -> None:
+        timestamp = datetime.now(timezone.utc)
         with self.get_connection() as conn:
             conn.execute('''
                 UPDATE users 
-                SET credits = credits + ? 
+                SET credits = credits + ?, last_credit_update_at = ?
                 WHERE id = ?
-            ''', (credits_delta, user_id))
-
+            ''', (credits_delta, timestamp, user_id))
+    
     # Payment methods
-    def create_payment(self, 
-                      payment_id: str,
-                      user_id: str,
-                      offer_id: str,
-                      provider: str,
-                      amount: float,
-                      currency: str,
-                      credits: int) -> str:
+    def create_payment_request(self, request_id: str, user_id: str, offer_id: str) -> Dict:
+        timestamp = datetime.now(timezone.utc)
+        
         with self.get_connection() as conn:
-            conn.execute('''
-                INSERT INTO payment_requests (
-                    id, user_id, offer_id, provider, amount, currency, credits,
-                    status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                payment_id, user_id, offer_id, provider, amount, currency, credits,
-                'pending'
-            ))
-        return payment_id
+            conn.execute(
+                'INSERT INTO payment_requests (id, user_id, offer_id, created_at) VALUES (?, ?, ?, ?)',
+                (request_id, user_id, offer_id, timestamp)
+            )
+            row = conn.execute(
+                'SELECT * FROM payment_requests WHERE id = ?', 
+                (request_id,)
+            ).fetchone()
+            return dict(row)
 
-    def update_payment_status(self, payment_id: str, status: str) -> None:
-        completed_at = datetime.now() if status == 'completed' else None
-        with self.get_connection() as conn:
-            conn.execute('''
-                UPDATE payment_requests 
-                SET status = ?, completed_at = ?
-                WHERE id = ?
-            ''', (status, completed_at, payment_id))
-
-    def get_payment(self, payment_id: str) -> Optional[Dict]:
+    def get_payment_request(self, request_id: str) -> Optional[Dict]:
         with self.get_connection() as conn:
             row = conn.execute(
                 'SELECT * FROM payment_requests WHERE id = ?',
-                (payment_id,)
+                (request_id,)
             ).fetchone()
             return dict(row) if row else None
 
-    def get_user_payments(self, user_id: str) -> List[Dict]:
+    def record_payment(self, payment_request_id: str, credits: int, amount: int, currency: str) -> Dict:
+        timestamp = datetime.now(timezone.utc)
+        
         with self.get_connection() as conn:
-            rows = conn.execute(
-                'SELECT * FROM payment_requests WHERE user_id = ? ORDER BY created_at DESC',
-                (user_id,)
-            ).fetchall()
-            return [dict(row) for row in rows]
-
-    # Stock cache methods
-    def set_stock_cache(self, ticker: str, data: Dict[str, Any]) -> None:
-        with self.get_connection() as conn:
-            conn.execute('''
-                INSERT OR REPLACE INTO stock_cache (ticker, data)
-                VALUES (?, json(?))
-            ''', (ticker, str(data)))
-
-    def get_stock_cache(self, ticker: str) -> Optional[Dict]:
-        with self.get_connection() as conn:
-            row = conn.execute(
-                'SELECT * FROM stock_cache WHERE ticker = ?',
-                (ticker,)
-            ).fetchone()
-            return dict(row) if row else None
+            cursor = conn.execute(
+                '''INSERT INTO payments 
+                   (payment_request_id, credits, amount, currency, created_at) 
+                   VALUES (?, ?, ?, ?, ?)
+                   RETURNING *''',
+                (payment_request_id, credits, amount, currency, timestamp)
+            )
+            row = cursor.fetchone()
+            return dict(row)
 
 db = Database()
 

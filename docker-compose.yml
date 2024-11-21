@@ -9,9 +9,3 @@ services:
     volumes:
       - .:/app
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "sqlite3", "/app/app.db", "SELECT 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
