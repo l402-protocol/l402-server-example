@@ -4,12 +4,22 @@ import functools
 import stock_data
 import l402
 import stripe_payments
+import lightning_payments
 from database import db
-
+import logging
+import os
 load_dotenv()
 
 app = Flask(__name__)
+logging.basicConfig(
+    level=os.getenv('LOG_LEVEL', 'INFO'),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger(__name__)
+
 stripe_payments.init_stripe_webhook_routes(app)  # For Stripe payments
+lightning_payments.init_lightning_webhook_routes(app)  # For Lightning payments
 
 
 def require_auth(f):
@@ -72,25 +82,30 @@ def info(user_data):
 @app.route('/ticker/<ticker_symbol>')
 @require_auth
 def ticker(user_data, ticker_symbol):
-    # If the user has no credits, return 402
+    logger.info(f"Received request for ticker {ticker_symbol} from user {user_data['id']}")
+    
     if user_data['credits'] <= 0:
+        logger.warning(f"User {user_data['id']} has insufficient credits")
         response = l402.create_new_response(user_data['id'])
         return response, 402
 
     try:
-        # Get the ticker data from Yahoo Finance
         ticker_data = stock_data.get_stock_data(ticker_symbol)
         if not ticker_data:
+            logger.error(f"Failed to fetch data for ticker {ticker_symbol}")
             return {'error': f'unable to fetch stock data for ticker {ticker_symbol}'}, 400
         
-        # Update credits only if we successfully got the data
+        logger.info(f"Successfully fetched data for ticker {ticker_symbol}")
         db.update_user_credits(user_data['id'], -1)
         return ticker_data
     except ConnectionError:
+        logger.error(f"Connection error while fetching {ticker_symbol}")
         return {'error': 'Unable to connect to stock data service. Please try again later.'}, 503
     except Exception as e:
+        logger.exception(f"Unexpected error while fetching {ticker_symbol}")
         return {'error': 'Failed to fetch stock data'}, 500
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001)
+    debug = os.environ.get("DEBUG")=="true"
+    app.run(host='0.0.0.0', port=5001, debug=debug)

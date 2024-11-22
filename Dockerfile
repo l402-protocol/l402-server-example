@@ -1,4 +1,4 @@
-FROM python:3.11-alpine
+FROM python:3.10-alpine
 
 # Install build dependencies and sqlite
 RUN apk add --no-cache \
@@ -9,6 +9,9 @@ RUN apk add --no-cache \
     sqlite \
     sqlite-dev
 
+# Upgrade pip first
+RUN pip install --upgrade pip
+
 WORKDIR /app
 
 COPY requirements.txt .
@@ -18,4 +21,12 @@ COPY . .
 
 EXPOSE 5001
 
-CMD ["python", "main.py"]
+CMD ["gunicorn", \
+     "--workers=1", \
+     "--bind=0.0.0.0:5001", \
+     "--log-level=info", \
+     "--access-logfile=-", \
+     "--error-logfile=-", \
+     "--capture-output", \
+     "--enable-stdio-inheritance", \
+     "main:app"]

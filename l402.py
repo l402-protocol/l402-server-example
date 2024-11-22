@@ -1,15 +1,22 @@
 from datetime import datetime, timedelta, timezone
-
+import os
+import logging
 from offers import api_offers
 from stripe_payments import create_stripe_session
-from base_payments import create_new_address
+from lightning_payments import create_lightning_invoice
 
 
 def create_new_response(user_id):
     if not user_id:
         raise ValueError("user_id is required")
+    
+    LIGHTNING_NETWORK_ENABLED = os.getenv("LIGHTNING_NETWORK_ENABLED", "false").lower() == "true"
+    STRIPE_ENABLED = os.getenv("STRIPE_ENABLED", "false").lower() == "true"
+    BASE_ENABLED = os.getenv("BASE_ENABLED", "false").lower() == "true"
 
-    expire_in_minutes = 10
+    # NOTE: some methods like stripe ask for at least 30 minutes to complete payment
+    # before they can expire.
+    expire_in_minutes = 35
     now = datetime.now(timezone.utc)
     expiry = now + timedelta(minutes=expire_in_minutes)
 
@@ -24,8 +31,21 @@ def create_new_response(user_id):
             "payment_methods": []
         }
 
-        for payment_method in api_offer["payment_methods"]:            
-            if payment_method == "stripe":
+        for payment_method in api_offer["payment_methods"]:
+            if payment_method == "lightning" and LIGHTNING_NETWORK_ENABLED:
+                logging.info(f"Creating Lightning payment request for offer {api_offer['offer_id']}")
+                payment_request = create_lightning_invoice(user_id, api_offer, expiry)
+                if payment_request:
+                    method = {
+                        "payment_type": "lightning",
+                        "payment_details": {
+                            "payment_request": payment_request
+                        }
+                    }
+                    offer["payment_methods"].append(method)
+
+            elif payment_method == "stripe" and STRIPE_ENABLED:
+                logging.info(f"Creating Stripe payment link for offer {api_offer['offer_id']}")
                 payment_link = create_stripe_session(user_id, api_offer, expiry)
 
                 if payment_link:
@@ -37,17 +57,15 @@ def create_new_response(user_id):
                     }
                     offer["payment_methods"].append(method)
                 else:
-                    print(f"Skipping payment method due to null payment link")
+                    logging.warning(f"Skipping payment method due to null payment link")
 
-        if offer["payment_methods"]:
-            offers.append(offer)
-        else:
-            print(f"Skipping offer {api_offer['offer_id']} as it has no valid payment methods")
-
+        
+        offers.append(offer)
+        
     response = {
         "version": "0.1",
         "offers": offers,
-        "expiry": expiry,
+        "expiry": expiry.replace(microsecond=0).isoformat(),
         "terms_url": "https://link-to-terms.com",
     }
     

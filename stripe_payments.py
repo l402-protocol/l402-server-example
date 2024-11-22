@@ -1,14 +1,16 @@
 import os
 import stripe
+import logging
 from flask import request
 from database import db
 from datetime import datetime, timedelta
 from uuid import uuid4
 from offers import get_offer_by_id
 
-stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 
 def init_stripe_webhook_routes(app):
+    stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+
     @app.route('/webhook/stripe', methods=['POST'])
     def handle_stripe_webhook():
         try:
@@ -27,13 +29,13 @@ def init_stripe_webhook_routes(app):
                 payment_request_id = metadata.get('payment_request')
                 
                 if not payment_request_id:
-                    print(f"Missing payment request ID: {event}")
+                    logging.error(f"Missing payment request ID: {event}")
                     return {}, 200
                 
                 # Load payment request data
                 payment_request = db.get_payment_request(payment_request_id)
                 if not payment_request:
-                    print(f"Invalid payment request: {payment_request_id}")
+                    logging.error(f"Invalid payment request: {payment_request_id}")
                     return {}, 200
                     
                 user_id = payment_request['user_id']
@@ -42,7 +44,7 @@ def init_stripe_webhook_routes(app):
                 # Load offer details to get credits amount
                 offer = get_offer_by_id(offer_id)
                 if not offer:
-                    print(f"Invalid offer: {offer_id}")
+                    logging.error(f"Invalid offer: {offer_id}")
                     return {}, 200
                 
                 # Update user credits based on offer
@@ -71,6 +73,7 @@ def create_stripe_session(user_id, offer, expiry):
     try:
         # Verify Stripe configuration
         if not stripe.api_key:
+            logging.error("Stripe API key not set")
             return None
 
         db.create_payment_request(payment_request, user_id, offer["offer_id"])
@@ -101,6 +104,8 @@ def create_stripe_session(user_id, offer, expiry):
         return session.url
 
     except stripe.error.StripeError as e:
+        logging.error(f"Stripe error: {e}")
         return None
     except Exception as e:
+        logging.error(f"Unexpected error creating Stripe session: {e}")
         return None

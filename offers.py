@@ -14,7 +14,7 @@ api_offers = [
         "amount": 1,
         "currency": "USD",
         "credits": 1,
-        "payment_methods": ["base"]
+        "payment_methods": ["base", "lightning"]
     }, 
     {
         "offer_id": "offer_97bf23f7",
@@ -23,7 +23,7 @@ api_offers = [
         "amount": 99,
         "currency": "USD",
         "credits": 100,
-        "payment_methods": ["base"]
+        "payment_methods": ["base", "lightning"]
     },
     {
         "offer_id": "offer_a896b13c",
@@ -32,7 +32,7 @@ api_offers = [
         "amount": 499,
         "currency": "USD",
         "credits": 500,
-        "payment_methods": ["base", "stripe"]
+        "payment_methods": ["base", "lightning", "stripe"]
     }
 ]
 

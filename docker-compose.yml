@@ -6,6 +6,13 @@ services:
     environment:
       - FLASK_ENV=production
       - DATABASE_URL=/app/app.db
+      - GUNICORN_TIMEOUT=120
+      - LOG_LEVEL=INFO
     volumes:
       - .:/app
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,5 +1,6 @@
 import yfinance as yf
 from datetime import datetime, timedelta
+import logging
 
 # Cache to store results with timestamps
 _cache = {}
@@ -45,5 +46,5 @@ def get_stock_data(ticker):
         _cache[ticker] = (datetime.now(), result)
         return result
     except Exception as e:
-        print(f"Error fetching data from yfinance: {e}")
+        logging.error(f"Error fetching data from yfinance: {e}")
         return None
