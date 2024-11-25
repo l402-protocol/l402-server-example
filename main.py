@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-from flask import Flask, request
+from flask import Flask, request, render_template
 import functools
 import stock_data
 import l402
@@ -106,6 +106,10 @@ def ticker(user_data, ticker_symbol):
     except Exception as e:
         logger.exception(f"Unexpected error while fetching {ticker_symbol}")
         return {'error': 'Failed to fetch stock data'}, 500
+
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 if __name__ == '__main__':
     debug = os.environ.get("DEBUG")=="true"
