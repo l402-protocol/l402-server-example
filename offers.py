@@ -14,16 +14,16 @@ api_offers = [
         "amount": 1,
         "currency": "USD",
         "credits": 1,
-        "payment_methods": ["base", "lightning"]
+        "payment_methods": ["lightning"]
     }, 
     {
         "offer_id": "offer_97bf23f7",
         "title": "10 Credits Package",
         "description": "Purchase 10 credits for API access",
-        "amount": 99,
+        "amount": 100,
         "currency": "USD",
-        "credits": 100,
-        "payment_methods": ["base", "lightning"]
+        "credits": 120,
+        "payment_methods": ["coinbase", "lightning"]
     },
     {
         "offer_id": "offer_a896b13c",
@@ -31,8 +31,8 @@ api_offers = [
         "description": "Purchase 100 credits for API access",
         "amount": 499,
         "currency": "USD",
-        "credits": 500,
-        "payment_methods": ["base", "lightning", "stripe"]
+        "credits": 750,
+        "payment_methods": ["coinbase", "lightning", "stripe"]
     }
 ]
 

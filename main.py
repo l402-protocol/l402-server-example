@@ -5,6 +5,7 @@ import stock_data
 import l402
 import stripe_payments
 import lightning_payments
+import coinbase_payments
 from database import db
 import logging
 import os
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 stripe_payments.init_stripe_webhook_routes(app)  # For Stripe payments
 lightning_payments.init_lightning_webhook_routes(app)  # For Lightning payments
+coinbase_payments.init_coinbase_webhook_routes(app)  # For Coinbase payments
 
 
 def require_auth(f):
@@ -104,7 +106,6 @@ def ticker(user_data, ticker_symbol):
     except Exception as e:
         logger.exception(f"Unexpected error while fetching {ticker_symbol}")
         return {'error': 'Failed to fetch stock data'}, 500
-
 
 if __name__ == '__main__':
     debug = os.environ.get("DEBUG")=="true"

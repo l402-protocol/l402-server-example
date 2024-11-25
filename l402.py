@@ -4,6 +4,7 @@ import logging
 from offers import api_offers
 from stripe_payments import create_stripe_session
 from lightning_payments import create_lightning_invoice
+from coinbase_payments import create_coinbase_charge
 
 
 def create_new_response(user_id):
@@ -12,7 +13,7 @@ def create_new_response(user_id):
     
     LIGHTNING_NETWORK_ENABLED = os.getenv("LIGHTNING_NETWORK_ENABLED", "false").lower() == "true"
     STRIPE_ENABLED = os.getenv("STRIPE_ENABLED", "false").lower() == "true"
-    BASE_ENABLED = os.getenv("BASE_ENABLED", "false").lower() == "true"
+    COINBASE_ENABLED = os.getenv("COINBASE_ENABLED", "false").lower() == "true"
 
     # NOTE: some methods like stripe ask for at least 30 minutes to complete payment
     # before they can expire.
@@ -43,6 +44,19 @@ def create_new_response(user_id):
                         }
                     }
                     offer["payment_methods"].append(method)
+            
+            elif payment_method == "coinbase" and COINBASE_ENABLED:
+                logging.info(f"Creating Coinbase charge for offer {api_offer['offer_id']}")
+                payment_details = create_coinbase_charge(user_id, api_offer, expiry)
+                if payment_details:
+                    method = {
+                        "payment_type": "coinbase",
+                        "payment_details": payment_details
+                    }
+
+                    offer["payment_methods"].append(method)
+                else:
+                    logging.warning(f"Skipping payment method due to null payment link")
 
             elif payment_method == "stripe" and STRIPE_ENABLED:
                 logging.info(f"Creating Stripe payment link for offer {api_offer['offer_id']}")
