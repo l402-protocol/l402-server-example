@@ -28,8 +28,20 @@
         <div class="bg-gray-800 p-6 rounded-lg mb-8">
             <h2 class="text-2xl font-bold mb-4">About This Demo</h2>
             <p class="mb-4">
-                This demo showcases the L402 protocol - a new standard for API monetization. 
+                This API demonstrates a credit-based system with automated payment handling, perfect for AI agents and automated systems. 
+                It provides real-time financial market data, allowing you to query stock ticker information programmatically.
                 Each API call costs 1 credit. New accounts start with 1 free credit.
+            </p>
+            <p class="mb-4">
+                The service exposes three main endpoints:
+                <ul class="list-disc list-inside ml-4 mt-2">
+                    <li><code>/signup</code> - Create account credentials and receive API key</li>
+                    <li><code>/info</code> - Check account status and remaining credits</li>
+                    <li><code>/ticker/{ticker_symbol}</code> - Get financial data for specific tickers</li>
+                </ul>
+            </p>
+            <p class="mb-4">
+                When you run out of credits, the API returns a <code>402 Payment Required</code> status code, allowing applications to programmatically handle payments and continue operation.
             </p>
             <p>
                 When you run out of credits, you'll be presented with payment options including:

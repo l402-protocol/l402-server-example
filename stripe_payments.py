@@ -68,6 +68,8 @@ stripe_payment_links = {
 
 def create_stripe_session(user_id, offer, expiry):
     payment_request = str(uuid4())
+    host = os.environ.get("HOST")
+    redirect_url = f"{host}?user_id={user_id}"
 
     try:
         # Verify Stripe configuration
@@ -95,8 +97,8 @@ def create_stripe_session(user_id, offer, expiry):
                 "user_id": user_id,
                 "offer_id": offer["offer_id"]
             },
-            success_url="https://stock.l402.org/payment/success",
-            cancel_url="https://stock.l402.org/payment/cancel",
+            success_url=f"{redirect_url}",
+            cancel_url=f"{redirect_url}",
             expires_at=int(expiry.timestamp())
         )
 
