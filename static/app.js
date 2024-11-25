@@ -80,22 +80,7 @@ const session = {
     lastKnownCredits: null,
 
     async init() {
-        // Check URL parameters first
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlUserId = urlParams.get('user_id');
-        
-        if (urlUserId) {
-            // Validate the user_id from URL
-            try {
-                const response = await api.getInfo(urlUserId);
-                this.userId = urlUserId;
-            } catch (error) {
-                // Invalid user_id, fall back to localStorage or new account
-                this.userId = localStorage.getItem('userId');
-            }
-        } else {
-            this.userId = localStorage.getItem('userId');
-        }
+        this.userId = localStorage.getItem('userId');
         
         if (!this.userId) {
             await this.createNew();
@@ -112,7 +97,6 @@ const session = {
         document.getElementById('userId').value = this.userId;
         await this.refreshCredits();
         display.showNotification(`New account created! You received ${data.credits} free credit(s)`);
-        window.history.pushState({}, '', '/');
     },
 
     async refreshCredits() {

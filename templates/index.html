@@ -10,14 +10,14 @@
     <div class="max-w-7xl mx-auto px-4 py-8">
         <!-- Header with auth -->
         <header class="mb-8">
-            <div class="flex justify-between items-center">
-                <h1 class="text-3xl font-bold">L402 Protocol Demo</h1>
-                <div class="flex items-center gap-4">
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <h1 class="text-3xl font-bold text-center sm:text-left">L402 Protocol Demo</h1>
+                <div class="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
                     <input type="text" id="userId" readonly 
-                           class="bg-gray-800 px-4 py-2 rounded" 
+                           class="bg-gray-800 px-4 py-2 rounded w-full sm:w-auto" 
                            placeholder="Your API Key">
                     <button id="getNewKey" 
-                            class="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700">
+                            class="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 w-full sm:w-auto">
                         Get New Key
                     </button>
                 </div>
