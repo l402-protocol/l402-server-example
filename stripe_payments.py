@@ -3,7 +3,6 @@ import stripe
 import logging
 from flask import request
 from database import db
-from datetime import datetime, timedelta
 from uuid import uuid4
 from offers import get_offer_by_id
 
