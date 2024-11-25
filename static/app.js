@@ -124,8 +124,13 @@ const payments = {
             <div class="bg-gray-700 p-4 rounded">
                 <h3 class="text-xl mb-2">${offer.title}</h3>
                 <p class="mb-4">${offer.description}</p>
-                <div class="flex flex-wrap gap-2">
-                    ${offer.payment_methods.map(method => this.createPaymentButton(method)).join('')}
+                <div class="flex flex-col gap-2">
+                    ${offer.payment_methods.map(method => `
+                        <div class="payment-method-container">
+                            ${this.createPaymentButton(method)}
+                            ${method.payment_type === 'lightning' ? '<div class="qr-container mt-4 hidden"></div>' : ''}
+                        </div>
+                    `).join('')}
                 </div>
             </div>
         `).join('');
@@ -135,7 +140,7 @@ const payments = {
 
     createPaymentButton(method) {
         if (method.payment_type === 'lightning') {
-            return `<button onclick="payments.showLightningQR('${method.payment_details.payment_request}')"
+            return `<button onclick="payments.toggleLightningQR(this, '${method.payment_details.payment_request}')"
                     class="bg-yellow-600 hover:bg-yellow-700 transition-colors px-4 py-2 rounded flex items-center">
                     <span class="mr-2">⚡</span> Pay with Lightning</button>`;
         }
@@ -151,12 +156,28 @@ const payments = {
         }
     },
 
-    showLightningQR(paymentRequest) {
-        const qrDiv = document.getElementById('qrcode');
-        qrDiv.innerHTML = '';
+    toggleLightningQR(button, paymentRequest) {
+        const selectedContainer = button.closest('.payment-method-container').querySelector('.qr-container');
         
+        // First hide all QR containers
+        document.querySelectorAll('.qr-container').forEach(container => {
+            if (container !== selectedContainer) {
+                container.classList.add('hidden');
+                container.innerHTML = '';
+            }
+        });
+        
+        // Toggle the selected QR container
+        if (!selectedContainer.classList.contains('hidden')) {
+            selectedContainer.classList.add('hidden');
+            selectedContainer.innerHTML = '';
+            return;
+        }
+
+        // Show and generate QR for selected container
+        selectedContainer.classList.remove('hidden');
         const canvas = document.createElement('canvas');
-        qrDiv.appendChild(canvas);
+        selectedContainer.appendChild(canvas);
         
         QRCode.toCanvas(canvas, paymentRequest, { 
             width: 300,
@@ -170,7 +191,10 @@ const payments = {
 
     hideModal() {
         document.getElementById('paymentModal').classList.add('hidden');
-        document.getElementById('qrcode').innerHTML = '';
+        document.querySelectorAll('.qr-container').forEach(container => {
+            container.innerHTML = '';
+            container.classList.add('hidden');
+        });
     }
 };
 
