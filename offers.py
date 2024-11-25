@@ -18,8 +18,8 @@ api_offers = [
     }, 
     {
         "offer_id": "offer_97bf23f7",
-        "title": "10 Credits Package",
-        "description": "Purchase 10 credits for API access",
+        "title": "120 Credits Package",
+        "description": "Purchase 120 credits for API access",
         "amount": 100,
         "currency": "USD",
         "credits": 120,
@@ -27,8 +27,8 @@ api_offers = [
     },
     {
         "offer_id": "offer_a896b13c",
-        "title": "100 Credits Package",
-        "description": "Purchase 100 credits for API access",
+        "title": "750 Credits Package",
+        "description": "Purchase 750 credits for API access",
         "amount": 499,
         "currency": "USD",
         "credits": 750,
