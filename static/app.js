@@ -124,6 +124,7 @@ const payments = {
             <div class="bg-gray-700 p-4 rounded">
                 <h3 class="text-xl mb-2">${offer.title}</h3>
                 <p class="mb-4">${offer.description}</p>
+                <p class="mb-4 text-lg">$${(offer.amount / 100).toFixed(2)} USD</p>
                 <div class="flex flex-col gap-2">
                     ${offer.payment_methods.map(method => `
                         <div class="payment-method-container">
