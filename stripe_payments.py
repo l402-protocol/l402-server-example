@@ -60,7 +60,7 @@ def init_stripe_webhook_routes(app):
             return {'status': 'success'}, 200
             
         except Exception as e:
-            return {'error': str(e)}, 400
+            return {'error': str(e)}, 200
 
 stripe_payment_links = {
     "offer_a896b13c": "https://buy.stripe.com/test_fZe7vZad0cZhdAk7sL"
@@ -68,8 +68,7 @@ stripe_payment_links = {
 
 def create_stripe_session(user_id, offer, expiry):
     payment_request = str(uuid4())
-    host = os.environ.get("HOST")
-    redirect_url = f"{host}?user_id={user_id}"
+    redirect_url = os.environ.get("HOST")
 
     try:
         # Verify Stripe configuration

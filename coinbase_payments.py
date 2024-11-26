@@ -109,7 +109,8 @@ def create_coinbase_charge(user_id, offer, expiry):
                 # Coinbase expects the amount in dollars not cents
                 "amount": str(float(offer["amount"]) / 100), 
                 "currency": offer["currency"]
-            }
+            },
+            "redirect_url": os.environ.get("HOST")
         }
        
         response = requests.post(url, json=payload, headers=headers)
