@@ -2,7 +2,7 @@ services:
   api:
     build: .
     ports:
-      - "5001:5001"
+      - "5000:5000"
     environment:
       - FLASK_ENV=production
       - DATABASE_URL=/app/app.db
