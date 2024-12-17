@@ -71,13 +71,13 @@ def init_coinbase_webhook_routes(app):
                 return {}, 200
             
             # Update user credits based on offer
-            db.update_user_credits(user_id, offer['credits'])
+            db.update_user_credits(user_id, offer['balance'])
             
             # Record the completed payment
             pricing = charge_data.get('pricing', {}).get('local', {})
             db.record_payment(
                 payment_request_id=payment_request['id'],
-                credits=offer['credits'],
+                credits=offer['balance'],
                 amount=int(float(pricing.get('amount', 0)) * 100),  # Convert to cents
                 currency=pricing.get('currency', '').upper(),
             )
@@ -129,7 +129,7 @@ def create_coinbase_charge(user_id, offer, expiry):
         
         return {
             "contract_addresses": charge_data["web3_data"]["contract_addresses"],
-            "payment_request": charge_data["hosted_url"]
+            "checkout_url": charge_data["hosted_url"]
         }
         
 

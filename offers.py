@@ -13,7 +13,8 @@ api_offers = [
         "description": "Purchase 1 credit for API access",
         "amount": 1,
         "currency": "USD",
-        "credits": 1,
+        "type": "top-up",
+        "balance": 1,
         "payment_methods": ["lightning"]
     }, 
     {
@@ -22,8 +23,9 @@ api_offers = [
         "description": "Purchase 120 credits for API access",
         "amount": 100,
         "currency": "USD",
-        "credits": 120,
-        "payment_methods": ["coinbase", "lightning"]
+        "type": "top-up",
+        "balance": 120,
+        "payment_methods": ["lightning", "coinbase_commerce"]
     },
     {
         "offer_id": "offer_a896b13c",
@@ -31,8 +33,9 @@ api_offers = [
         "description": "Purchase 750 credits for API access",
         "amount": 499,
         "currency": "USD",
-        "credits": 750,
-        "payment_methods": ["coinbase", "lightning", "stripe"]
+        "type": "top-up",
+        "balance": 750,
+        "payment_methods": ["lightning", "coinbase_commerce", "credit_card"]
     }
 ]
 
@@ -42,4 +45,5 @@ def get_offer_by_id(offer_id: str) -> Optional[Dict]:
     for offer in api_offers:
         if offer["offer_id"] == offer_id:
             return offer
+
     return None

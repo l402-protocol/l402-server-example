@@ -67,12 +67,12 @@ def init_lightning_webhook_routes(app):
                     return {}, 200
                 
                 # Update user credits based on offer
-                db.update_user_credits(user_id, offer['credits'])
+                db.update_user_credits(user_id, offer['balance'])
                 
                 # Record the completed payment
                 db.record_payment(
                     payment_request_id=payment_request_id,
-                    credits=offer['credits'],
+                    credits=offer['balance'],
                     amount=offer['amount'],
                     currency=offer['currency'],
                 )

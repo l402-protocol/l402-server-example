@@ -47,12 +47,12 @@ def init_stripe_webhook_routes(app):
                     return {}, 200
                 
                 # Update user credits based on offer
-                db.update_user_credits(user_id, offer['credits'])
+                db.update_user_credits(user_id, offer['balance'])
                 
                 # Record the completed payment
                 db.record_payment(
                     payment_request_id=payment_request_id,
-                    credits=offer['credits'],
+                    credits=offer['balance'],
                     amount=offer['amount'],
                     currency=offer['currency'],
                 )
@@ -60,7 +60,8 @@ def init_stripe_webhook_routes(app):
             return {'status': 'success'}, 200
             
         except Exception as e:
-            return {'error': str(e)}, 200
+            logging.error(f"Error handling Stripe webhook: {e}")
+            return {}, 200
 
 stripe_payment_links = {
     "offer_a896b13c": "https://buy.stripe.com/test_fZe7vZad0cZhdAk7sL"

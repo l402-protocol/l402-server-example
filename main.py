@@ -6,6 +6,7 @@ import l402
 import stripe_payments
 import lightning_payments
 import coinbase_payments
+import offers
 from database import db
 import logging
 import os
@@ -78,7 +79,7 @@ def ticker(user_data, ticker_symbol):
     
     if user_data['credits'] <= 0:
         logger.warning(f"User {user_data['id']} has insufficient credits")
-        response = l402.create_new_response(user_data['id'])
+        response = l402.create_new_response()
         return response, 402
 
     try:
@@ -96,6 +97,24 @@ def ticker(user_data, ticker_symbol):
     except Exception as e:
         logger.exception(f"Unexpected error while fetching {ticker_symbol}")
         return {'error': 'Failed to fetch stock data'}, 500
+
+@app.route('/l402/payment-request', methods=['POST'])
+@require_auth
+def payment_request(user_data):
+    try:
+        user_id = user_data['id']
+        offer_id = request.json.get('offer_id')
+        payment_method = request.json.get('payment_method')
+
+        if not offers.get_offer_by_id(offer_id):
+            return {'error': f'offer {offer_id} does not exist'}, 400
+
+        return l402.create_new_payment_request(user_id, offer_id, payment_method), 200
+
+    except Exception as e:
+        logger.exception(f"Unexpected error while creating payment request")
+        return {'error': 'Failed to create payment request'}, 500
+
 
 @app.route('/')
 def index():

@@ -1,86 +1,77 @@
 from datetime import datetime, timedelta, timezone
 import os
 import logging
-from offers import api_offers
+from offers import api_offers, get_offer_by_id
 from stripe_payments import create_stripe_session
 from lightning_payments import create_lightning_invoice
 from coinbase_payments import create_coinbase_charge
 
 
-def create_new_response(user_id):
-    if not user_id:
-        raise ValueError("user_id is required")
-    
+def is_payment_method_enabled(payment_method):
     LIGHTNING_NETWORK_ENABLED = os.getenv("LIGHTNING_NETWORK_ENABLED", "false").lower() == "true"
     STRIPE_ENABLED = os.getenv("STRIPE_ENABLED", "false").lower() == "true"
     COINBASE_ENABLED = os.getenv("COINBASE_ENABLED", "false").lower() == "true"
 
+    if payment_method == "lightning" and LIGHTNING_NETWORK_ENABLED:
+        return True
+    elif payment_method == "coinbase_commerce" and COINBASE_ENABLED:
+        return True
+    elif payment_method == "credit_card" and STRIPE_ENABLED:
+        return True
+
+    return False
+
+
+def create_new_response():
+    return {
+        "version": "0.2.0",
+        "offers": api_offers,
+        "payment_request_url": os.getenv("HOST") + "/l402/payment-request",
+        "terms_url": "https://link-to-terms.com",
+    }
+
+
+def create_new_payment_request(user_id, offer_id, payment_method):
+    if not user_id:
+        raise ValueError("user_id is required")
+    
+    if not is_payment_method_enabled(payment_method):
+        raise ValueError(f"Payment method {payment_method} is not enabled")
+    
+    offer = get_offer_by_id(offer_id)
+    if not offer:
+        raise ValueError(f"Offer {offer_id} does not exist")
+    
     # NOTE: some methods like stripe ask for at least 30 minutes to complete payment
     # before they can expire.
     expire_in_minutes = 35
     now = datetime.now(timezone.utc)
     expiry = now + timedelta(minutes=expire_in_minutes)
 
-    offers = []
-    for api_offer in api_offers:
-        offer = {
-            "id": api_offer["offer_id"],
-            "title": api_offer["title"],
-            "description": api_offer["description"],
-            "amount": api_offer["amount"],
-            "currency": api_offer["currency"],
-            "payment_methods": []
-        }
-
-        for payment_method in api_offer["payment_methods"]:
-            if payment_method == "lightning" and LIGHTNING_NETWORK_ENABLED:
-                logging.info(f"Creating Lightning payment request for offer {api_offer['offer_id']}")
-                payment_request = create_lightning_invoice(user_id, api_offer, expiry)
-                if payment_request:
-                    method = {
-                        "payment_type": "lightning",
-                        "payment_details": {
-                            "payment_request": payment_request
-                        }
-                    }
-                    offer["payment_methods"].append(method)
-            
-            elif payment_method == "coinbase" and COINBASE_ENABLED:
-                logging.info(f"Creating Coinbase charge for offer {api_offer['offer_id']}")
-                payment_details = create_coinbase_charge(user_id, api_offer, expiry)
-                if payment_details:
-                    method = {
-                        "payment_type": "coinbase",
-                        "payment_details": payment_details
-                    }
-
-                    offer["payment_methods"].append(method)
-                else:
-                    logging.warning(f"Skipping payment method due to null payment link")
-
-            elif payment_method == "stripe" and STRIPE_ENABLED:
-                logging.info(f"Creating Stripe payment link for offer {api_offer['offer_id']}")
-                payment_link = create_stripe_session(user_id, api_offer, expiry)
-
-                if payment_link:
-                    method = {
-                        "payment_type": "stripe",
-                        "payment_details": {
-                            "payment_link": payment_link
-                        }
-                    }
-                    offer["payment_methods"].append(method)
-                else:
-                    logging.warning(f"Skipping payment method due to null payment link")
-
-        
-        offers.append(offer)
-        
     response = {
-        "version": "0.1",
-        "offers": offers,
-        "expiry": expiry.replace(microsecond=0).isoformat(),
-        "terms_url": "https://link-to-terms.com",
+        "version": "0.2.0",
+        "offer_id": offer_id,
+        "payment_request": {},
+        "expires_at": expiry.isoformat(),
     }
     
-    return response
+    try:
+        if payment_method == "lightning":
+            logging.info(f"Creating Lightning payment request for offer {offer_id}")
+            response["payment_request"]["lightning_invoice"] = create_lightning_invoice(user_id, offer, expiry)
+
+        elif payment_method == "coinbase_commerce":
+            logging.info(f"Creating Coinbase charge for offer {offer_id}")
+            payment_details = create_coinbase_charge(user_id, offer, expiry)
+            response["payment_request"]["checkout_url"] = payment_details["checkout_url"]
+            response["payment_request"]["contract_addresses"] = payment_details["contract_addresses"]
+
+        elif payment_method == "credit_card":
+            logging.info(f"Creating Stripe payment link for offer {offer_id}")
+            response["payment_request"]["checkout_url"] = create_stripe_session(user_id, offer, expiry)
+        
+        return response
+    
+    except Exception as e:
+        logging.error(f"Failed to create payment request for offer {offer_id} with payment method {payment_method}: {e}")
+        raise ValueError(f"Failed to create payment request")
