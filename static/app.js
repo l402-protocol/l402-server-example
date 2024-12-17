@@ -116,7 +116,10 @@ const session = {
 
 // Payment handling
 const payments = {
+    _invoiceCache: new Map(), // Cache for storing only lightning invoices
+
     async showOffers(offers) {
+        window._lastOffers = offers; // Store offers for back button
         const modal = document.getElementById('paymentModal');
         const offersContainer = document.getElementById('offers');
         
@@ -126,12 +129,7 @@ const payments = {
                 <p class="mb-4">${offer.description}</p>
                 <p class="mb-4 text-lg">$${(offer.amount / 100).toFixed(2)} USD</p>
                 <div class="flex flex-col gap-2">
-                    ${offer.payment_methods.map(method => `
-                        <div class="payment-method-container">
-                            ${this.createPaymentButton(method)}
-                            ${method.payment_type === 'lightning' ? '<div class="qr-container mt-4 hidden"></div>' : ''}
-                        </div>
-                    `).join('')}
+                    ${this.createPaymentButtons(offer)}
                 </div>
             </div>
         `).join('');
@@ -139,21 +137,118 @@ const payments = {
         modal.classList.remove('hidden');
     },
 
-    createPaymentButton(method) {
-        if (method.payment_type === 'lightning') {
-            return `<button onclick="payments.toggleLightningQR(this, '${method.payment_details.payment_request}')"
-                    class="bg-yellow-600 hover:bg-yellow-700 transition-colors px-4 py-2 rounded flex items-center">
-                    <span class="mr-2">⚡</span> Pay with Lightning</button>`;
-        }
-        if (method.payment_type === 'stripe') {
-            return `<button onclick="window.location.href='${method.payment_details.payment_link}'"
-                    class="bg-blue-600 hover:bg-blue-700 transition-colors px-4 py-2 rounded flex items-center">
-                    <span class="mr-2">💳</span> Pay with Card</button>`;
-        }
-        if (method.payment_type === 'coinbase') {
-            return `<button onclick="window.location.href='${method.payment_details.payment_request}'"
-                    class="bg-blue-400 hover:bg-blue-500 transition-colors px-4 py-2 rounded flex items-center">
-                    <span class="mr-2">₿</span> Pay with Crypto</button>`;
+    createPaymentButtons(offer) {
+        return `
+            <div class="grid grid-cols-3 gap-2">
+                ${offer.payment_methods.map(method => `
+                    <button onclick="payments.initiatePayment('${offer.offer_id}', '${method}')"
+                            class="payment-btn ${this.getButtonStyle(method)} px-4 py-2 rounded flex items-center justify-center">
+                        <span class="mr-2">${this.getPaymentIcon(method)}</span> 
+                        ${this.getPaymentLabel(method)}
+                    </button>
+                `).join('')}
+            </div>
+        `;
+    },
+
+    getButtonStyle(method) {
+        const styles = {
+            'lightning': 'bg-yellow-600 hover:bg-yellow-700',
+            'coinbase_commerce': 'bg-blue-400 hover:bg-blue-500',
+            'credit_card': 'bg-blue-600 hover:bg-blue-700'
+        };
+        return styles[method] || 'bg-gray-600 hover:bg-gray-700';
+    },
+
+    getPaymentIcon(method) {
+        const icons = {
+            'lightning': '⚡',
+            'coinbase_commerce': '₿',
+            'credit_card': '💳'
+        };
+        
+        return icons[method] || '💰';
+    },
+
+    getPaymentLabel(method) {
+        const labels = {
+            'lightning': 'Lightning',
+            'coinbase_commerce': 'Crypto',
+            'credit_card': 'Card'
+        };
+        return labels[method] || method;
+    },
+
+    getCacheKey(offerId) {
+        return `lightning_${offerId}`;
+    },
+
+    async initiatePayment(offerId, paymentMethod) {
+        try {
+            let paymentData;
+
+            if (paymentMethod === 'lightning') {
+                const cacheKey = this.getCacheKey(offerId);
+                paymentData = this._invoiceCache.get(cacheKey);
+
+                if (!paymentData) {
+                    const response = await fetch('/l402/payment-request', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${session.userId}`
+                        },
+                        body: JSON.stringify({
+                            offer_id: offerId,
+                            payment_method: paymentMethod
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to initiate payment');
+                    }
+
+                    paymentData = await response.json();
+                    
+                    // Only cache lightning invoices that aren't close to expiring
+                    const expiryTime = new Date(paymentData.expires_at);
+                    const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000);
+                    
+                    if (expiryTime > fiveMinutesFromNow) {
+                        this._invoiceCache.set(cacheKey, paymentData);
+                    }
+                }
+                
+                await qrcode.showLightningQR(paymentData.payment_request.lightning_invoice);
+            } else {
+                // Handle credit card and coinbase commerce payments
+                const response = await fetch('/l402/payment-request', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.userId}`
+                    },
+                    body: JSON.stringify({
+                        offer_id: offerId,
+                        payment_method: paymentMethod
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to initiate payment');
+                }
+
+                paymentData = await response.json();
+                console.log(paymentData);
+                
+                if (paymentData.payment_request.checkout_url) {
+                    window.location.href = paymentData.payment_request.checkout_url;
+                } else {
+                    throw new Error('No checkout URL provided');
+                }
+            }
+        } catch (error) {
+            display.showNotification('Error initiating payment: ' + error.message);
         }
     },
 
@@ -196,6 +291,85 @@ const payments = {
             container.innerHTML = '';
             container.classList.add('hidden');
         });
+        qrcode.clearCheckInterval(); // Clear the payment check interval
+        this._invoiceCache.clear(); // Clear the invoice cache
+    },
+
+    clearCache() {
+        this._invoiceCache.clear();
+    }
+};
+
+// First, add this helper function for QR code generation
+const qrcode = {
+    _checkInterval: null,
+
+    async showLightningQR(invoice) {
+        const offersContainer = document.getElementById('offers');
+        
+        // Add QR content alongside the existing offers
+        offersContainer.innerHTML = `
+            <div class="bg-gray-700 p-4 rounded">
+                <h3 class="text-xl mb-4">Scan Lightning Invoice</h3>
+                <div id="qrcode" class="flex justify-center mb-4 bg-black p-4 rounded mx-auto" style="width: fit-content;"></div>
+                <div class="flex items-center justify-center gap-2 mb-4">
+                    <button onclick="navigator.clipboard.writeText('${invoice}')" 
+                            class="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                  d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                        </svg>
+                        Copy Invoice
+                    </button>
+                </div>
+                <button onclick="payments.showOffers(window._lastOffers)" 
+                        class="mt-4 text-sm text-blue-400 hover:text-blue-300">
+                    ← Back to payment methods
+                </button>
+            </div>
+        `;
+
+        // Clear any existing QR code and interval
+        const qrContainer = document.getElementById("qrcode");
+        qrContainer.innerHTML = '';
+        this.clearCheckInterval();
+
+        // Create canvas and generate QR
+        const canvas = document.createElement('canvas');
+        qrContainer.appendChild(canvas);
+        
+        QRCode.toCanvas(canvas, invoice, { 
+            width: 300,
+            margin: 2,
+            color: {
+                dark: '#FFF',
+                light: '#000'
+            }
+        });
+
+        // Start checking for payment completion
+        this.startPaymentCheck();
+    },
+
+    startPaymentCheck() {
+        const initialCredits = session.lastKnownCredits;
+        
+        this._checkInterval = setInterval(async () => {
+            await session.refreshCredits();
+            
+            // If credits increased, payment was successful
+            if (session.lastKnownCredits > initialCredits) {
+                this.clearCheckInterval();
+                location.reload(); // Reload the page to show new data
+            }
+        }, 2000); // Check every 2 seconds
+    },
+
+    clearCheckInterval() {
+        if (this._checkInterval) {
+            clearInterval(this._checkInterval);
+            this._checkInterval = null;
+        }
     }
 };
 
