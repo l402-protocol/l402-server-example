@@ -118,12 +118,12 @@ const session = {
 const payments = {
     _invoiceCache: new Map(), // Cache for storing only lightning invoices
 
-    async showOffers(offers) {
-        window._lastOffers = offers; // Store offers for back button
+    async showOffers(offersData) {
+        window._lastOffers = offersData; // Store the entire response data
         const modal = document.getElementById('paymentModal');
         const offersContainer = document.getElementById('offers');
         
-        offersContainer.innerHTML = offers.map(offer => `
+        offersContainer.innerHTML = offersData.offers.map(offer => `
             <div class="bg-gray-700 p-4 rounded">
                 <h3 class="text-xl mb-2">${offer.title}</h3>
                 <p class="mb-4">${offer.description}</p>
@@ -186,6 +186,11 @@ const payments = {
     async initiatePayment(offerId, paymentMethod) {
         try {
             let paymentData;
+            const paymentContextToken = window._lastOffers?.payment_context_token;
+            
+            if (!paymentContextToken) {
+                throw new Error('Missing payment context token');
+            }
 
             if (paymentMethod === 'lightning') {
                 const cacheKey = this.getCacheKey(offerId);
@@ -195,12 +200,12 @@ const payments = {
                     const response = await fetch('/l402/payment-request', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${session.userId}`
+                            'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
                             offer_id: offerId,
-                            payment_method: paymentMethod
+                            payment_method: paymentMethod,
+                            payment_context_token: paymentContextToken
                         })
                     });
 
@@ -225,12 +230,12 @@ const payments = {
                 const response = await fetch('/l402/payment-request', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${session.userId}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         offer_id: offerId,
-                        payment_method: paymentMethod
+                        payment_method: paymentMethod,
+                        payment_context_token: paymentContextToken
                     })
                 });
 
@@ -239,7 +244,6 @@ const payments = {
                 }
 
                 paymentData = await response.json();
-                console.log(paymentData);
                 
                 if (paymentData.payment_request.checkout_url) {
                     window.location.href = paymentData.payment_request.checkout_url;
@@ -391,7 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (result.status === 402) {
                     display.clearResults();
-                    payments.showOffers(result.data.offers);
+                    payments.showOffers(result.data);
                 } else if (result.status === 200) {
                     display.updateResults(result.data);
                 } else {

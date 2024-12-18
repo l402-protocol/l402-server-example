@@ -7,6 +7,8 @@ from lightning_payments import create_lightning_invoice
 from coinbase_payments import create_coinbase_charge
 
 
+L402_VERSION = "0.2.1"
+
 def is_payment_method_enabled(payment_method):
     LIGHTNING_NETWORK_ENABLED = os.getenv("LIGHTNING_NETWORK_ENABLED", "false").lower() == "true"
     STRIPE_ENABLED = os.getenv("STRIPE_ENABLED", "false").lower() == "true"
@@ -22,11 +24,12 @@ def is_payment_method_enabled(payment_method):
     return False
 
 
-def create_new_response():
+def create_new_response(payment_context_token):
     return {
-        "version": "0.2.0",
+        "version": L402_VERSION,
         "offers": api_offers,
         "payment_request_url": os.getenv("HOST") + "/l402/payment-request",
+        "payment_context_token": payment_context_token,
         "terms_url": "https://link-to-terms.com",
     }
 
@@ -49,7 +52,7 @@ def create_new_payment_request(user_id, offer_id, payment_method):
     expiry = now + timedelta(minutes=expire_in_minutes)
 
     response = {
-        "version": "0.2.0",
+        "version": L402_VERSION,
         "offer_id": offer_id,
         "payment_request": {},
         "expires_at": expiry.isoformat(),

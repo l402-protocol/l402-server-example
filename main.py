@@ -79,7 +79,7 @@ def ticker(user_data, ticker_symbol):
     
     if user_data['credits'] <= 0:
         logger.warning(f"User {user_data['id']} has insufficient credits")
-        response = l402.create_new_response()
+        response = l402.create_new_response(user_data['id'])
         return response, 402
 
     try:
@@ -99,13 +99,23 @@ def ticker(user_data, ticker_symbol):
         return {'error': 'Failed to fetch stock data'}, 500
 
 @app.route('/l402/payment-request', methods=['POST'])
-@require_auth
-def payment_request(user_data):
+def payment_request():
     try:
-        user_id = user_data['id']
         offer_id = request.json.get('offer_id')
         payment_method = request.json.get('payment_method')
+        
+        # The payment context token allows the server to identify the user
+        # this payment request is for. In this case we use the user_id
+        # directly as the payment context token.
+        user_id = request.json.get('payment_context_token')
 
+        if not user_id:
+            return {'error': 'Missing payment context token'}, 400
+        
+        user = db.get_user(user_id)
+        if not user:
+            return {'error': f'user {user_id} does not exist'}, 400
+        
         if not offers.get_offer_by_id(offer_id):
             return {'error': f'offer {offer_id} does not exist'}, 400
 
