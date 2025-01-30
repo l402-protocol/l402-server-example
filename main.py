@@ -103,7 +103,7 @@ def payment_request():
     try:
         offer_id = request.json.get('offer_id')
         payment_method = request.json.get('payment_method')
-        chain = request.json.get('chain', 'base-sepolia')
+        chain = request.json.get('chain', 'base-mainnet')
         asset = request.json.get('asset', 'usdc')
         
         # The payment context token allows the server to identify the user

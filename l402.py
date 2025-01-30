@@ -38,9 +38,9 @@ def validate_onchain_params(payment_method, chain, asset):
     if payment_method != "onchain":
         return True
         
-    if chain != "base-sepolia" or asset != "usdc":
+    if chain != "base-mainnet" or asset != "usdc":
         raise ValueError(
-            "Invalid chain or asset. Only base-sepolia/usdc is supported"
+            "Invalid chain or asset. Only base-mainnet/usdc is supported"
         )
     return True
 
@@ -77,7 +77,7 @@ def create_new_payment_request(user_id, offer_id, payment_method, chain=None, as
             response["payment_request"]["lightning_invoice"] = create_lightning_invoice(user_id, offer, expiry)
 
         elif payment_method == "onchain":
-            network_id = "84532"  # base-sepolia
+            network_id = "8453"  # base-mainnet
             logging.info(f"Creating onchain payment request for offer {offer_id}")
             payment_details = create_coinbase_charge(user_id, offer, expiry)
             response["payment_request"]["checkout_url"] = payment_details["checkout_url"]
