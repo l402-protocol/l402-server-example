@@ -103,6 +103,8 @@ def payment_request():
     try:
         offer_id = request.json.get('offer_id')
         payment_method = request.json.get('payment_method')
+        chain = request.json.get('chain', 'base-sepolia')
+        asset = request.json.get('asset', 'usdc')
         
         # The payment context token allows the server to identify the user
         # this payment request is for. In this case we use the user_id
@@ -119,8 +121,16 @@ def payment_request():
         if not offers.get_offer_by_id(offer_id):
             return {'error': f'offer {offer_id} does not exist'}, 400
 
-        return l402.create_new_payment_request(user_id, offer_id, payment_method), 200
+        return l402.create_new_payment_request(
+            user_id, 
+            offer_id, 
+            payment_method,
+            chain=chain,
+            asset=asset
+        ), 200
 
+    except ValueError as e:
+        return {'error': str(e)}, 400
     except Exception as e:
         logger.exception(f"Unexpected error while creating payment request")
         return {'error': 'Failed to create payment request'}, 500

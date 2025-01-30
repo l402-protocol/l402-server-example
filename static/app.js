@@ -154,7 +154,7 @@ const payments = {
     getButtonStyle(method) {
         const styles = {
             'lightning': 'bg-yellow-600 hover:bg-yellow-700',
-            'coinbase_commerce': 'bg-blue-400 hover:bg-blue-500',
+            'onchain': 'bg-blue-400 hover:bg-blue-500',
             'credit_card': 'bg-blue-600 hover:bg-blue-700'
         };
         return styles[method] || 'bg-gray-600 hover:bg-gray-700';
@@ -163,7 +163,7 @@ const payments = {
     getPaymentIcon(method) {
         const icons = {
             'lightning': '⚡',
-            'coinbase_commerce': '₿',
+            'onchain': '₿',
             'credit_card': '💳'
         };
         
@@ -173,7 +173,7 @@ const payments = {
     getPaymentLabel(method) {
         const labels = {
             'lightning': 'Lightning',
-            'coinbase_commerce': 'Crypto',
+            'onchain': 'Crypto',
             'credit_card': 'Card'
         };
         return labels[method] || method;

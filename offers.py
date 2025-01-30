@@ -25,7 +25,7 @@ api_offers = [
         "currency": "USD",
         "type": "top-up",
         "balance": 120,
-        "payment_methods": ["lightning", "coinbase_commerce"]
+        "payment_methods": ["lightning", "onchain"]
     },
     {
         "offer_id": "offer_a896b13c",
@@ -35,7 +35,7 @@ api_offers = [
         "currency": "USD",
         "type": "top-up",
         "balance": 750,
-        "payment_methods": ["lightning", "coinbase_commerce", "credit_card"]
+        "payment_methods": ["lightning", "onchain", "credit_card"]
     }
 ]
 
