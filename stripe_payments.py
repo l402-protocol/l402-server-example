@@ -95,7 +95,8 @@ def create_stripe_session(user_id, offer, expiry):
             metadata={
                 "payment_request": payment_request,
                 "user_id": user_id,
-                "offer_id": offer["offer_id"]
+                "offer_id": offer["offer_id"],
+                "application_id": os.environ.get("APPLICATION_ID")
             },
             success_url=f"{redirect_url}",
             cancel_url=f"{redirect_url}",
