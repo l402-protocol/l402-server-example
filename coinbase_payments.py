@@ -35,7 +35,7 @@ def init_coinbase_webhook_routes(app):
 
             # Get raw request payload
             payload = request.get_data().decode('utf-8')
-            
+
             # Verify signature
             if not verify_coinbase_signature(payload, signature, webhook_secret):
                 logging.error(f"Invalid Coinbase webhook signature({signature}): {payload}")
@@ -50,6 +50,13 @@ def init_coinbase_webhook_routes(app):
                 return {}, 200
             
             charge_data = event.get('data', {})
+
+            # Check metadata app_id
+            metadata = charge_data.get('metadata', {})
+            if metadata.get('app_id') != os.environ.get("APP_ID"):
+                logger.error(f"Invalid app_id in webhook metadata: {metadata.get('app_id')}")
+                return True
+
             charge_code = charge_data.get('code')
             if not charge_code:
                 logging.error("Missing charge code in webhook data")
@@ -108,9 +115,12 @@ def create_coinbase_charge(user_id, offer, expiry):
             "local_price": {
                 # Coinbase expects the amount in dollars not cents
                 "amount": str(float(offer["amount"]) / 100), 
-                "currency": offer["currency"]
+                "currency": offer["currency"],
             },
-            "redirect_url": os.environ.get("HOST")
+            "redirect_url": os.environ.get("HOST"),
+            "metadata": {
+                "app_id": os.environ.get("APP_ID"),
+            },
         }
        
         response = requests.post(url, json=payload, headers=headers)

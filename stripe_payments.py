@@ -25,8 +25,12 @@ def init_stripe_webhook_routes(app):
                 
                 # Extract payment request from metadata
                 metadata = session.get('metadata', {})
+                # Check metadata app_id
+                if metadata.get('app_id') != os.environ.get("APP_ID"):
+                    logger.error(f"Invalid app_id in webhook metadata: {metadata.get('app_id')}")
+                    return {}, 200
+
                 payment_request_id = metadata.get('payment_request')
-                
                 if not payment_request_id:
                     logging.error(f"Missing payment request ID: {event}")
                     return {}, 200
@@ -96,7 +100,7 @@ def create_stripe_session(user_id, offer, expiry):
                 "payment_request": payment_request,
                 "user_id": user_id,
                 "offer_id": offer["offer_id"],
-                "application_id": os.environ.get("APPLICATION_ID")
+                "app_id": os.environ.get("APP_ID")
             },
             success_url=f"{redirect_url}",
             cancel_url=f"{redirect_url}",
