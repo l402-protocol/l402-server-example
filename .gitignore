@@ -160,3 +160,6 @@ cython_debug/
 #.idea/
 
 app.db
+
+# Make sure our solana private keys are not leaked
+solana_master.key

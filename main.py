@@ -10,6 +10,12 @@ import offers
 from database import db
 import logging
 import os
+from datetime import datetime, timedelta
+import asyncio
+from hypercorn.asyncio import serve
+from hypercorn.config import Config
+import sys
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -99,16 +105,12 @@ def ticker(user_data, ticker_symbol):
         return {'error': 'Failed to fetch stock data'}, 500
 
 @app.route('/l402/payment-request', methods=['POST'])
-def payment_request():
+async def payment_request():
     try:
         offer_id = request.json.get('offer_id')
         payment_method = request.json.get('payment_method')
         chain = request.json.get('chain', 'base-mainnet')
         asset = request.json.get('asset', 'usdc')
-        
-        # The payment context token allows the server to identify the user
-        # this payment request is for. In this case we use the user_id
-        # directly as the payment context token.
         user_id = request.json.get('payment_context_token')
 
         if not user_id:
@@ -121,13 +123,14 @@ def payment_request():
         if not offers.get_offer_by_id(offer_id):
             return {'error': f'offer {offer_id} does not exist'}, 400
 
-        return l402.create_new_payment_request(
+        result = await l402.create_new_payment_request(
             user_id, 
             offer_id, 
             payment_method,
             chain=chain,
             asset=asset
-        ), 200
+        )
+        return result, 200
 
     except ValueError as e:
         return {'error': str(e)}, 400
@@ -135,11 +138,19 @@ def payment_request():
         logger.exception(f"Unexpected error while creating payment request")
         return {'error': 'Failed to create payment request'}, 500
 
-
 @app.route('/')
 def index():
     return render_template('index.html')
 
+async def main():
+    logger.info("Starting server initialization...")
+    config = Config()
+    config.bind = ["0.0.0.0:5001"]
+
+    logger.info("Server configured, starting Hypercorn...")
+    await serve(app, config)
+   
+
 if __name__ == '__main__':
-    debug = os.environ.get("DEBUG")=="true"
-    app.run(host='0.0.0.0', port=5001, debug=debug)
+    logger.info("Entering main block...")
+    asyncio.run(main())

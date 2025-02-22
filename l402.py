@@ -5,6 +5,7 @@ from offers import api_offers, get_offer_by_id
 from stripe_payments import create_stripe_session
 from lightning_payments import create_lightning_invoice
 from coinbase_payments import create_coinbase_charge
+from solana_payments import create_solana_charge
 
 
 L402_VERSION = "0.2.1"
@@ -38,14 +39,18 @@ def validate_onchain_params(payment_method, chain, asset):
     if payment_method != "onchain":
         return True
         
-    if chain != "base-mainnet" or asset != "usdc":
-        raise ValueError(
-            "Invalid chain or asset. Only base-mainnet/usdc is supported"
-        )
-    return True
+    if chain == "base-mainnet" and asset == "usdc":
+        return True
+    
+    if chain == "solana-mainnet-beta" and asset == "usdc":
+        return True
+    
+    raise ValueError(
+        "Invalid chain or asset. Only base-mainnet/usdc and solana-mainnet-beta/usdc are supported"
+    )
 
 
-def create_new_payment_request(user_id, offer_id, payment_method, chain=None, asset=None):
+async def create_new_payment_request(user_id, offer_id, payment_method, chain=None, asset=None):
     if not user_id:
         raise ValueError("user_id is required")
     
@@ -59,7 +64,6 @@ def create_new_payment_request(user_id, offer_id, payment_method, chain=None, as
         raise ValueError(f"Offer {offer_id} does not exist")
     
     # NOTE: some methods like stripe ask for at least 30 minutes to complete payment
-    # before they can expire.
     expire_in_minutes = 35
     now = datetime.now(timezone.utc)
     expiry = now + timedelta(minutes=expire_in_minutes)
@@ -77,13 +81,23 @@ def create_new_payment_request(user_id, offer_id, payment_method, chain=None, as
             response["payment_request"]["lightning_invoice"] = create_lightning_invoice(user_id, offer, expiry)
 
         elif payment_method == "onchain":
-            network_id = "8453"  # base-mainnet
-            logging.info(f"Creating onchain payment request for offer {offer_id}")
-            payment_details = create_coinbase_charge(user_id, offer, expiry)
-            response["payment_request"]["checkout_url"] = payment_details["checkout_url"]
-            response["payment_request"]["address"] = payment_details["contract_addresses"][network_id]
-            response["payment_request"]["asset"] = asset
-            response["payment_request"]["chain"] = chain
+            if chain == "base-mainnet":
+                network_id = "8453"  # base-mainnet
+                logging.info(f"Creating onchain payment request for offer {offer_id}")
+                payment_details = create_coinbase_charge(user_id, offer, expiry)
+                response["payment_request"]["checkout_url"] = payment_details["checkout_url"]
+                response["payment_request"]["address"] = payment_details["contract_addresses"][network_id]
+                response["payment_request"]["asset"] = asset
+                response["payment_request"]["chain"] = chain
+            elif chain == "solana-mainnet-beta":
+                logging.info(f"Creating Solana payment request for offer {offer_id}")
+                payment_details = await create_solana_charge(user_id, offer, expiry)
+                if payment_details:
+                    response["payment_request"]["address"] = payment_details["address"]
+                    response["payment_request"]["asset"] = asset
+                    response["payment_request"]["chain"] = chain
+                else:
+                    raise ValueError("Failed to create Solana payment")
 
         elif payment_method == "credit_card":
             logging.info(f"Creating Stripe payment link for offer {offer_id}")
